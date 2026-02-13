@@ -13,24 +13,21 @@ else:
     st.error("⚠️ Falta el API Token en los Secrets de Streamlit.")
 
 # 3. Dirección de tu foto en GitHub
-# Esta es la ruta directa a tu archivo 'fotojesus.png'
 URL_MI_FOTO = "https://raw.githubusercontent.com/jesuslorentea-coder/regalo-cumple/main/fotojesus.png"
 
 # 4. Interfaz de usuario
 st.title("🎂 ¡Hagamos un recuerdo juntos!")
 st.write("Dime dónde te gustaría que estuviéramos y la IA nos pondrá allí.")
 
-lugar_propuesto = st.text_input("¿Dónde quieres que nos hagamos la foto?", 
-                               placeholder="Ej: Jugando al golf")
-
+lugar_propuesto = st.text_input("¿Dónde quieres que nos hagamos la foto?", placeholder="Ej: Jugando al golf")
 foto_amigo = st.camera_input("Hazte un selfie para nuestro recuerdo")
 
-# 5. Lógica de generación con IA
+# 5. Lógica de generación
 if foto_amigo and lugar_propuesto:
     if st.button("✨ ¡Crear Recuerdo!"):
         with st.spinner("Cocinando nuestra foto... Esto tarda unos 30 segundos"):
             try:
-                # Usamos una versión estable de InstantID para evitar errores de versión
+                # Usamos la versión de InstantID más estable y compatible
                 output = replicate.run(
                     "lucataco/instantid:e7530869",
                     input={
@@ -43,20 +40,15 @@ if foto_amigo and lugar_propuesto:
                     }
                 )
 
-                # El resultado suele ser una lista de imágenes
                 resultado_url = output[0] if isinstance(output, list) else output
-
-                # Mostrar el resultado
                 st.image(resultado_url, caption=f"Nosotros: {lugar_propuesto}")
                 st.balloons()
                 st.success("¡GRACIAS POR FELICITARME! ¡ABRAZOS!")
                 
-                # Botón de descarga
                 img_data = requests.get(resultado_url).content
-                st.download_button("📥 Descargar foto", img_data, "nuestro_recuerdo.jpg", "image/jpeg")
+                st.download_button("📥 Descargar foto", img_data, "recuerdo.jpg", "image/jpeg")
 
             except Exception as e:
-                # Si hay error de pago/verificación en Replicate, saldrá aquí
                 st.error(f"Hubo un problema técnico: {e}")
 
 st.divider()
