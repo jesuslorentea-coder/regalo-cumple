@@ -12,8 +12,8 @@ if "REPLICATE_API_TOKEN" in st.secrets:
 else:
     st.error("⚠️ Falta el API Token en los Secrets de Streamlit.")
 
-# 3. Configuración de tu foto en GitHub
-# Usamos el enlace directo a tu archivo 'fotojesus.png'
+# 3. Dirección de tu foto en GitHub
+# Esta es la ruta directa a tu archivo 'fotojesus.png'
 URL_MI_FOTO = "https://raw.githubusercontent.com/jesuslorentea-coder/regalo-cumple/main/fotojesus.png"
 
 # 4. Interfaz de usuario
@@ -30,7 +30,7 @@ if foto_amigo and lugar_propuesto:
     if st.button("✨ ¡Crear Recuerdo!"):
         with st.spinner("Cocinando nuestra foto... Esto tarda unos 30 segundos"):
             try:
-                # Usamos la versión más reciente y estable de InstantID
+                # Usamos una versión estable de InstantID para evitar errores de versión
                 output = replicate.run(
                     "lucataco/instantid:e7530869",
                     input={
@@ -43,7 +43,7 @@ if foto_amigo and lugar_propuesto:
                     }
                 )
 
-                # El resultado suele ser una lista de imágenes, cogemos la primera
+                # El resultado suele ser una lista de imágenes
                 resultado_url = output[0] if isinstance(output, list) else output
 
                 # Mostrar el resultado
@@ -51,12 +51,13 @@ if foto_amigo and lugar_propuesto:
                 st.balloons()
                 st.success("¡GRACIAS POR FELICITARME! ¡ABRAZOS!")
                 
-                # Botón para que tu amigo pueda descargar la foto
+                # Botón de descarga
                 img_data = requests.get(resultado_url).content
                 st.download_button("📥 Descargar foto", img_data, "nuestro_recuerdo.jpg", "image/jpeg")
 
             except Exception as e:
+                # Si hay error de pago/verificación en Replicate, saldrá aquí
                 st.error(f"Hubo un problema técnico: {e}")
 
 st.divider()
-st.caption("Hecho con ❤️ para mi cumple")
+st.caption("Hecho con ❤️ para celebrar mi cumple")
