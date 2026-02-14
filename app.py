@@ -32,36 +32,36 @@ URL_JESUS = "https://raw.githubusercontent.com/jesuslorentea-coder/regalo-cumple
 foto_amigo = st.camera_input("Hazte un selfie")
 
 if foto_amigo and st.button("✨ ¡Crear Recuerdo!"):
-    with st.spinner(f"Cocinando la foto... Esto puede tardar hasta 2 minutos si hay mucha gente usándolo."):
+    with st.spinner(f"Cocinando la foto en {lugar}... Ten paciencia, los servidores gratuitos tienen cola."):
         try:
-            # CAMBIO DE MOTOR: Este está público y funcionando
-            client = Client("tuan2308/face-swap")
+            # MOTOR 3: Vinthony suele ser muy estable
+            client = Client("vinthony/face-homography")
             
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                 tmp.write(foto_amigo.getvalue())
                 tmp_path = tmp.name
 
-            # El motor 'tuan2308' usa estos parámetros
+            # Parámetros para este modelo específico
             result = client.predict(
-                source_file=handle_file(tmp_path), # Tu selfie
-                target_file=handle_file(URL_JESUS), # Foto de Jesús
-                do_face_restoration=True # Para que quede guapo
+                source_image=handle_file(tmp_path),
+                target_image=handle_file(URL_JESUS),
+                api_name="/predict"
             )
 
-            # El resultado es una lista, cogemos el primer elemento (la imagen)
-            img_path = result[0] if isinstance(result, list) else result
+            # El resultado suele ser un diccionario o una ruta directa
+            img_path = result if isinstance(result, str) else result[0]
             
             with open(img_path, "rb") as f:
                 img_final = f.read()
 
             st.image(img_final, caption=f"¡Míranos en {lugar}!")
             
-            # Guardar
+            # Guardar en Drive
             upload_to_drive(foto_amigo.getvalue(), f"selfie_{lugar}.png")
             upload_to_drive(img_final, f"recuerdo_{lugar}.png")
             st.success("✅ ¡Guardado en Drive!")
             st.balloons()
 
         except Exception as e:
-            st.error(f"Error: {e}")
-            st.info("Si el error dice 'Queue full', espera 30 segundos y dale otra vez.")
+            st.error(f"Lo siento, el servidor de IA está saturado: {e}")
+            st.info("💡 Consejo: Si falla, espera 1 minuto y vuelve a dar al botón. ¡A veces es cuestión de insistir!")
