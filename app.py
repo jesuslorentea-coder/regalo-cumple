@@ -5,11 +5,10 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
 import tempfile
-import os
 
 st.set_page_config(page_title="Cumpleaños de Jesús", page_icon="🎂")
 
-# --- FUNCIÓN DE CARGA A DRIVE ---
+# --- CONEXIÓN CON DRIVE ---
 def upload_to_drive(file_bytes, file_name):
     try:
         creds = service_account.Credentials.from_service_account_info(st.secrets["google_credentials"])
@@ -26,54 +25,43 @@ def upload_to_drive(file_bytes, file_name):
 
 # --- INTERFAZ ---
 st.title("🎂 ¡Nuestro recuerdo de cumple!")
-st.write("Dime dónde quieres que estemos y la IA nos pondrá allí.")
 
-# 1. Recuperamos el campo del lugar
+# Recuperamos la pregunta del lugar
 lugar = st.text_input("¿Dónde quieres que nos hagamos la foto?", "Jugando al golf")
 
-# Foto de Jesús (la que ya tienes en GitHub)
+# Foto de Jesús (GitHub)
 URL_JESUS = "https://raw.githubusercontent.com/jesuslorentea-coder/regalo-cumple/main/fotojesus.png"
 
 foto_amigo = st.camera_input("Hazte un selfie para nuestro recuerdo")
 
 if foto_amigo and st.button("✨ ¡Crear Recuerdo!"):
-    with st.spinner(f"Generando nuestra foto en: {lugar}..."):
+    with st.spinner(f"Cocinando nuestra foto en {lugar}... (Esto puede tardar 1-2 min si hay cola)"):
         try:
-            # 2. IA GRATUITA (Cambiamos el modelo por uno más robusto)
-            # Usamos un cliente que no dependa de api_name específicos
-            client = Client("sczhou/CodeFormer") 
+            # Usamos un modelo de Face Swap más sencillo y estable
+            client = Client("ghostman/face-swap") 
             
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                 tmp.write(foto_amigo.getvalue())
                 tmp_path = tmp.name
 
-            # Realizamos el procesamiento (este modelo es excelente para mejorar caras)
+            # Llamada directa sin 'api_name' para evitar el error anterior
             result = client.predict(
-                image=handle_file(tmp_path),
-                background_enhance=True,
-                face_upsample=True,
-                upscale=2,
-                codeformer_fidelity=0.5
+                source_image=handle_file(tmp_path),
+                target_image=handle_file(URL_JESUS)
             )
 
-            # Nota: Para hacer el swap con el fondo y con Jesús de forma gratuita 
-            # sin Replicate, estamos usando un mejorador de cara. 
-            # Si quieres swap total, seguiremos ajustando el espacio de HF.
-
+            # El resultado suele ser una ruta de archivo local en el servidor
             with open(result, "rb") as f:
                 img_final = f.read()
 
-            # 3. MOSTRAR RESULTADO
-            st.image(img_final, caption=f"Nosotros {lugar}")
+            # MOSTRAR Y GUARDAR
+            st.image(img_final, caption=f"¡Míranos en {lugar}!")
             
-            # 4. GUARDAR EN DRIVE
-            st.info("Guardando en tu Google Drive...")
             upload_to_drive(foto_amigo.getvalue(), f"selfie_{lugar}.png")
             upload_to_drive(img_final, f"recuerdo_{lugar}.png")
             
-            st.success("✅ ¡Todo guardado! ¡FELIZ CUMPLEAÑOS!")
+            st.success("✅ ¡Guardado en tu Google Drive!")
             st.balloons()
 
         except Exception as e:
-            st.error(f"Ups, algo falló: {e}")
-            st.info("Prueba de nuevo, a veces los servidores gratuitos se saturan un momento.")
+            st.error(f"Hubo un pequeño bache: {e}")
