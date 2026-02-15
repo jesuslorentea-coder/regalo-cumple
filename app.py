@@ -7,91 +7,89 @@ import io
 import tempfile
 import os
 
-# 1. Configuración de seguridad y página
-st.set_page_config(page_title="Regalo de Jesús", page_icon="🎂", layout="centered")
+# --- CONFIGURACIÓN ---
+st.set_page_config(page_title="Regalo de Jesús", page_icon="🎂")
 
-def check_secrets():
-    """Verifica que todos los secretos necesarios estén presentes."""
-    required = ["google_credentials", "google_drive"]
-    for req in required:
-        if req not in st.secrets:
-            st.error(f"Falta la configuración de: {req} en los Secrets.")
-            return False
-    return True
-
-# 2. Función de Google Drive (Optimizada)
+# Función para subir a Drive (Confirmada tu folder_id)
 def upload_to_drive(file_bytes, file_name):
     try:
-        creds = service_account.Credentials.from_service_account_info(st.secrets["google_credentials"])
+        creds_info = st.secrets["google_credentials"]
+        creds = service_account.Credentials.from_service_account_info(creds_info)
         service = build('drive', 'v3', credentials=creds)
-        folder_id = st.secrets["google_drive"]["folder_id"]
         
+        folder_id = st.secrets["google_drive"]["folder_id"]
         file_metadata = {'name': file_name, 'parents': [folder_id]}
-        media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/png', resumable=True)
-        service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        return True
+        
+        media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/png')
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        return file.get('id')
     except Exception as e:
-        st.sidebar.error(f"Error al subir a Drive: {e}")
-        return False
+        st.error(f"Error subiendo a Drive: {e}")
+        return None
 
 # --- INTERFAZ ---
-st.title("🎂 ¡Nuestro recuerdo de cumple!")
+st.title("🎁 Creador de Recuerdos Mágicos")
+st.markdown("Generaremos una foto tuya con Jesús en el lugar que elijas.")
 
-if check_secrets():
-    lugar = st.text_input("¿Dónde quieres que nos hagamos la foto?", "Jugando al golf")
-    
-    # Foto de Jesús (Tu referencia fija)
-    URL_JESUS = "https://raw.githubusercontent.com/jesuslorentea-coder/regalo-cumple/main/fotojesus.png"
-    
-    foto_amigo = st.camera_input("Hazte un selfie")
+# 1. Entrada de datos
+lugar = st.text_input("¿Dónde quieres que estéis?", "Jugando al golf en el espacio")
+foto_amigo = st.camera_input("Hazte un selfie")
 
-    if foto_amigo and st.button("✨ ¡Crear Recuerdo!"):
-        # Usamos st.status para que el usuario vea el progreso real
-        with st.status("🚀 Iniciando proceso mágico...", expanded=True) as status:
-            try:
-                # PASO 1: Preparar archivos
-                status.write("📸 Preparando imágenes...")
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                    tmp.write(foto_amigo.getvalue())
-                    selfie_path = tmp.name
+# Foto de referencia de Jesús
+URL_JESUS = "https://raw.githubusercontent.com/jesuslorentea-coder/regalo-cumple/main/fotojesus.png"
 
-                # PASO 2: Conectar con IA (Usamos un motor de respaldo más estable)
-                status.write("🤖 Conectando con el motor de IA (FaceSwap)...")
-                # Este modelo es más ligero y no usa api_names complicados
-                client = Client("sczhou/CodeFormer") 
-                
-                # Ejecutamos la mejora/swap
-                status.write("🎨 Generando la imagen (esto puede tardar por la cola de espera)...")
-                result = client.predict(
-                    image=handle_file(selfie_path),
-                    background_enhance=True,
-                    face_upsample=True,
-                    upscale=2,
-                    codeformer_fidelity=0.5
-                )
-                
-                # PASO 3: Procesar resultado
-                status.write("📥 Descargando resultado...")
-                with open(result, "rb") as f:
-                    img_final = f.read()
+if foto_amigo and st.button("✨ Generar y Guardar en Drive"):
+    with st.status("🚀 Procesando tu regalo...", expanded=True) as status:
+        try:
+            # Preparar archivos temporales
+            status.write("📸 Analizando tu selfie...")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                tmp.write(foto_amigo.getvalue())
+                selfie_path = tmp.name
 
-                # PASO 4: Mostrar en la web
-                status.write("✅ ¡Foto lista!")
-                st.image(img_final, caption=f"Nosotros {lugar} (Mejorado por IA)")
-                
-                # PASO 5: Guardar en Drive
-                status.write("☁️ Guardando copias en tu Google Drive...")
-                upload_to_drive(foto_amigo.getvalue(), f"selfie_{lugar}.png")
-                upload_to_drive(img_final, f"recuerdo_{lugar}.png")
-                
-                status.update(label="✨ ¡Proceso completado con éxito!", state="complete", expanded=False)
+            # MOTOR DE IA: Usamos un FaceSwap altamente disponible
+            status.write("🤖 Conectando con el servidor de IA (esto puede tardar por la cola)...")
+            # Este motor es más estable para llamadas externas
+            client = Client("tonyassi/face-swap")
+            
+            # Realizar el intercambio (Swap)
+            # Nota: Usamos predict sin api_name para que el servidor elija la función principal automáticamente
+            result = client.predict(
+                source_image=handle_file(selfie_path), # Tu cara
+                target_image=handle_file(URL_JESUS),   # Cara de Jesús / Escenario
+            )
+
+            # El resultado suele ser la ruta a la imagen generada
+            img_path = result if isinstance(result, str) else result[0]
+            
+            with open(img_path, "rb") as f:
+                img_final = f.read()
+
+            # Mostrar resultado
+            status.write("🎨 ¡Recuerdo generado!")
+            st.image(img_final, caption=f"¡Juntos en: {lugar}!", use_container_width=True)
+
+            # GUARDAR EN DRIVE
+            status.write("📂 Guardando en tu Google Drive...")
+            # Guardamos el selfie original
+            upload_to_drive(foto_amigo.getvalue(), f"selfie_{lugar}.png")
+            # Guardamos el resultado final
+            id_final = upload_to_drive(img_final, f"recuerdo_{lugar}.png")
+
+            if id_final:
+                status.update(label="✅ ¡Todo guardado correctamente!", state="complete")
                 st.balloons()
-                st.success(f"¡Felicidades! Tienes las fotos en tu Drive y aquí mismo.")
+            
+        except Exception as e:
+            status.update(label="❌ El servidor de IA está saturado", state="error")
+            st.error(f"Error técnico: {e}")
+            st.info("💡 Como es un servicio gratuito, a veces hay mucha cola. Espera 1 minuto e inténtalo de nuevo.")
+        finally:
+            if os.path.exists(selfie_path):
+                os.remove(selfie_path)
 
-            except Exception as e:
-                status.update(label="❌ Error en el proceso", state="error")
-                st.error(f"Detalle del error: {e}")
-                st.info("💡 Probablemente el servidor de IA esté saturado. Inténtalo de nuevo en 10 segundos.")
-            finally:
-                if 'selfie_path' in locals() and os.path.exists(selfie_path):
-                    os.remove(selfie_path)
+# --- REQUISITOS (asegúrate de que tu requirements.txt tenga esto) ---
+# streamlit
+# gradio_client
+# google-api-python-client
+# google-auth
